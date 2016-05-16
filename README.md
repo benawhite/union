@@ -1,21 +1,38 @@
 # union
 Union is a very small library that brings interchangeable JavaScript components together. ~1200 bytes gziped
 
-**union.join(interfaceConfig) -> interfaceChannel**
-> Each logical component of the application must connect to the union using the join method. When a component joins the union, an interface channel is returned. The union does not limit the number of components that can join with the same role. For eaxample, it is possible for multiple view components to join the same union. The API must account for these situations.
+**union.initialize(config)**
+> Before any interfaces are connected, the union should first be initialized with default interface methods, options, and configutation properties. 
 ~~~javascript
-var channel = union.join({
-  role: 'someRole',
-  name: 'myInterface' // optional
+union.initialize({
+  config: {
+    logging: {'*': {minLevel: 'error'}}
+  },
+  methods: {
+    log: function () { console.log.apply(console, arguments); }
+  },
+  options: {
+    isolate: false, // don't clone message
+    logging: true // emit errors
+  }
 });
 ~~~
 
-**union.addRule(role, type, mutator)**
-> Rules are the brains of the union. These functions have the ability to route messages, manipulate the message content, and effectively define the API which all interfaces must conform to.
-This example routes all messages emitted with (**any** interface role) and (**log** message type) to all interfaces with a role of **logging**.
+**union.join(interfaceConfig) -> interfaceChannel**
+> Each logical component of the application connects to the union using the **join** method. When a component joins the union, an interface channel is returned. The union does not limit the number of components that can join, even if they have the same role. For example, it is possible for multiple "view" components to join the union.
 ~~~javascript
-union.addRule('*', 'log', function (event) {
-    event.toRole = 'logging';
+var channel = union.join({
+  role: 'view',
+  name: 'htmlView' // optional
 });
 ~~~
-> Rules are covered in more details below.
+The channel returned will have **on**, **emit**, and **destroy** methods for communicating to the union. Additionally, it will have any methods that were defined in the **union.initialize** configuration. The above initialize call would have added a **log** method to the channel.
+
+**union.addRule(role, type, rule)**
+> Rules are the backbone of the union. They have the ability to set message routing, manipulate message content, and effectively define the API which all interfaces must conform to. Any messages that are emitted on a channel without a cooresponding rule will be dropped.
+~~~javascript
+union.addRule('*', 'log', function () {
+    this.toRole = 'logging';
+});
+~~~
+This example routes messages emitted with (**any** interface role) and (**log** message type) to all interfaces with a role of **logging**.
